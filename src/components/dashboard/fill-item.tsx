@@ -11,9 +11,10 @@ interface FillItemProps {
   record: FuelRecord
   units: UnitSettings
   nextOdometer?: number
+  previousEfficiency?: number
 }
 
-export default function FillItem({ record, units, nextOdometer }: FillItemProps) {
+export default function FillItem({ record, units, nextOdometer, previousEfficiency }: FillItemProps) {
   const d = parseLocalDate(record.date)
   const dateObj = new Date(d.year, d.month - 1, 1)
   const shortMonth = format(dateObj, "MMM")
@@ -22,7 +23,10 @@ export default function FillItem({ record, units, nextOdometer }: FillItemProps)
   const purchased = parseFloat(record.fuel_purchased)
   const volume = parseFloat(record.fuel_volume)
   const odo = parseFloat(record.odometer)
-  const trip = nextOdometer !== undefined && !isNaN(odo) ? nextOdometer - odo : null
+  
+  const hasActualTrip = nextOdometer !== undefined && !isNaN(odo)
+  const trip = hasActualTrip ? nextOdometer - odo : null
+  const estimatedTrip = !hasActualTrip && previousEfficiency && !isNaN(volume) ? volume * previousEfficiency : null
 
   return (
     <div className="hover:bg-muted cursor-pointer rounded-lg py-1 pr-2 transition-colors">
@@ -52,15 +56,25 @@ export default function FillItem({ record, units, nextOdometer }: FillItemProps)
         <div className="w-[29%] shrink-0 text-left">
           {trip !== null ? (
             <>
-            <h3 className="text-primary truncate font-medium">
-              {trip.toLocaleString()} {units.distance} 
-            </h3>
-            <p className="text-muted-foreground truncate text-sm">{(trip / volume).toFixed(2)} {units.distance}/{units.volume}</p>
+              <h3 className="text-primary truncate font-medium">
+                {trip.toLocaleString()} {units.distance} 
+              </h3>
+              <p className="text-muted-foreground truncate text-sm">
+                {(trip / volume).toFixed(2)} {units.distance}/{units.volume}
+              </p>
+            </>
+          ) : estimatedTrip !== null && estimatedTrip > 0 ? (
+            <>
+              <h3 className="text-muted-foreground truncate font-medium italic">
+                ~ {estimatedTrip.toLocaleString(undefined, { maximumFractionDigits: 0 })} {units.distance}
+              </h3>
+              <p className="text-muted-foreground truncate text-sm italic">
+                Est. Mileage
+              </p>
             </>
           ) : (
             <h3 className="text-muted-foreground truncate font-medium">—</h3>
           )}
-          
         </div>
 
         {/* Cost */}

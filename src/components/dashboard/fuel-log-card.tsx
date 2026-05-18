@@ -37,14 +37,33 @@ export default function FuelLogCard({ records }: FuelLogCardProps) {
     })
   }, [records])
 
-  /** Display order: most recent first, with nextOdometer attached */
+  /** Display order: most recent first by date, then highest odometer first, with nextOdometer attached */
   const displayRecords = useMemo(() => {
     return sortedAsc
-      .map((r, i) => ({
-        ...r,
-        nextOdometer: sortedAsc[i + 1] ? parseFloat(sortedAsc[i + 1].odometer) : undefined,
-      }))
-      .reverse()
+      .map((r, i) => {
+        let previousEfficiency: number | undefined = undefined
+        if (i > 0) {
+          const prev = sortedAsc[i - 1]
+          const prevOdo = parseFloat(prev.odometer)
+          const curOdo = parseFloat(r.odometer)
+          const prevVol = parseFloat(prev.fuel_volume)
+          if (!isNaN(prevOdo) && !isNaN(curOdo) && curOdo > prevOdo && !isNaN(prevVol) && prevVol > 0) {
+            previousEfficiency = (curOdo - prevOdo) / prevVol
+          }
+        }
+        return {
+          ...r,
+          nextOdometer: sortedAsc[i + 1] ? parseFloat(sortedAsc[i + 1].odometer) : undefined,
+          previousEfficiency,
+        }
+      })
+      .sort((a, b) => {
+        const dateCompare = b.date.localeCompare(a.date)
+        if (dateCompare !== 0) return dateCompare
+        const odoA = parseFloat(a.odometer) || 0
+        const odoB = parseFloat(b.odometer) || 0
+        return odoB - odoA
+      })
   }, [sortedAsc])
 
   /**
@@ -171,7 +190,12 @@ export default function FuelLogCard({ records }: FuelLogCardProps) {
             )}
             {paginatedRecords.map((record, idx) => (
               <FillDialog key={`${record.date}-${record.odometer}-${idx}`} mode="edit" record={record}>
-                <FillItem record={record} units={units} nextOdometer={record.nextOdometer} />
+                <FillItem
+                  record={record}
+                  units={units}
+                  nextOdometer={record.nextOdometer}
+                  previousEfficiency={record.previousEfficiency}
+                />
               </FillDialog>
             ))}
           </div>
